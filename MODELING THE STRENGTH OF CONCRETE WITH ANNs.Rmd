@@ -1,0 +1,138 @@
+---
+title: "MODELING THE STRENGTH OF CONCRETE WITH ANNs"
+author: "VALINE OKEYO"
+date: "2023-10-04"
+output:
+  html_document: default
+---
+
+#Introduction
+
+-   Estimating the strength of concrete is a challenge of particular interest. Although it is 
+used in nearly every construction project, concrete performance varies greatly due to 
+the use of a wide variety of ingredients that interact in complex ways. As a result, it 
+is difficult to accurately predict the strength of the final product. A model that could 
+reliably predict concrete strength given a listing of the composition of the input 
+materials could result in safer construction practices.
+
+
+#Import Dataset
+```{r}
+library(readr)
+concrete <- read_csv("C:/Users/user/Downloads/concrete.csv")
+View(concrete)
+```
+
+# View Structure
+```{r}
+str(concrete)
+```
+-    Neural networks work best when the input data are scaled to a narrow range around zero, and here we see values ranging anywhere from zero up to over a thousand.
+-   Typically, the solution to this problem is to rescale the data with a normalizing or 
+standardization function.
+
+#Normalization Funtion
+```{r}
+normalize <- function(x){
+  return((x-min(x))/(max(x)-min(x)))
+}
+```
+
+
+#Applying the normalization function on the data
+```{r}
+concrete_norm <- as.data.frame(lapply(concrete, normalize))
+```
+
+#To confirm that the normalization worked;
+```{r}
+summary(concrete_norm$strength)
+```
+-   we can see that the minimum and maximum strength are now 0 and 1, respectively.
+
+#In comparison, the original minimum and maximum values were 2.33 and 82.6:
+```{r}
+summary(concrete$strength)
+```
+
+#we will partition the data into a training set with 75% of the examples and a testing set with 25%.
+```{r}
+concrete_train <- concrete_norm[1:773, ]
+concrete_test <- concrete_norm[774:1030, ]
+```
+
+
+# Training the model 
+```{r}
+library(neuralnet)
+
+concrete_model <- neuralnet(strength ~ cement + slag +
+ ash + water + superplastic + 
+ coarseagg + fineagg + age,
+ data = concrete_train, hidden = 1)
+
+plot(concrete_model)
+```
+
+
+-   In this simple model, there is one input node for each of the eight features, followed 
+by a single hidden node and a single output node that predicts the concrete strength. 
+The weights for each of the connections are also depicted, as are the bias terms 
+(indicated by the nodes with a 1). The plot also reports the number of training steps 
+and a measure called, the Sum of Squared Errors (SSE). These metrics will be useful 
+when we are evaluating the model performance.
+
+
+#Evaluating model performance
+```{r}
+ model_results <- compute(concrete_model, concrete_test[1:8])
+```
+
+
+```{r}
+predicted_strength <- model_results$net.result
+```
+
+
+```{r}
+cor(predicted_strength, concrete_test$strength)
+```
+
+-   Correlations close to 1 indicate strong linear relationships between two variables. 
+Therefore, the correlation here of about 0.8 indicates a fairly strong relationship. 
+This implies that our model is doing a fairly good job, even with only a single hidden node.
+
+#Given that we only used one hidden node, it is likely that we can improve the performance of our model. Let's try to do a bit better;
+#Let's see what happens when we increase the number of hidden nodes to 5
+
+```{r}
+ concrete_model2 <- neuralnet(strength ~ cement + slag +
+ ash + water + superplastic + 
+ coarseagg + fineagg + age,
+ data = concrete_train, hidden = 5)
+
+plot(concrete_model2)
+```
+
+
+-   The reported error (measured again by SSE) has been reduced from 5.08 
+in the previous model to 1.61 here.
+
+
+```{r}
+model_results2 <- compute(concrete_model2, concrete_test[1:8])
+```
+
+
+```{r}
+predicted_strength2 <- model_results2$net.result
+```
+
+```{r}
+cor(predicted_strength2, concrete_test$strength)
+```
+
+-   Applying the same steps to compare the predicted values to the true values, we 
+now obtain a correlation of 0.9, which is a considerable improvement over 
+the previous result.
+
